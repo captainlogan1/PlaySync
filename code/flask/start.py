@@ -24,20 +24,9 @@ app.register_blueprint(youtube_auth)
 app.register_blueprint(update_email)
 app.register_blueprint(spotify_api)
 app.register_blueprint(spotify_auth)
-# app.register_blueprint(spotify_playlist)
 app.register_blueprint(spotify_callback)
 app.register_blueprint(spotify_remove)
 app.register_blueprint(profile_page_password)
 app.register_blueprint(profile_page_delete_acc)
-# app.register_blueprint(spotify_songs)
-# app.register_blueprint(spotify_add_pl)
-# app.register_blueprint(spotify_add_sg)
-# app.register_blueprint(spotify_search)
-
-
-
-# @app.route('/')
-# def index():
-#     return 'Web App with Python Flask!'
 
 app.run(host='127.0.0.1', port=81)

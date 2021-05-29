@@ -28,3 +28,8 @@ def remove_spotify_auth(user):
     uid = psql_get_uid(user)
     psql_write_auth(uid, 'spotify', 'Not Authorized')
     return "removed"
+
+def remove_yt_auth(user):
+    uid = psql_get_uid(user)
+    psql_write_auth(uid, 'ytmusic', '')
+    return "removed"

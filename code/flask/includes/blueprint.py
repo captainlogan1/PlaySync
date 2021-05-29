@@ -1,16 +1,18 @@
 from flask import Blueprint, render_template, abort, request, make_response, redirect
 from jinja2 import TemplateNotFound
 import json
+import sys
 from urllib.parse import quote, unquote
 from includes.userauth import *
 from includes.api_auth import *
 from includes.tasker import *
 from includes.userprofile import *
-# from api.spotify import get_spotify, playlists, callback, auth_spotify, get_name, sign_out, songs, add_playlist, add_song, search_song
 import api.spotify as spotify
+import api.youtubeOAuth as yt
 import hashlib
 
 landing_page = Blueprint('landing_page', __name__, template_folder='templates')
+verify_page = Blueprint('verify_page', __name__, template_folder='templates')
 login_page = Blueprint('login_page', __name__, template_folder='templates')
 logout_page = Blueprint('logout_page', __name__, template_folder='templates')
 userauth_page = Blueprint('userauth_page', __name__, template_folder='templates')
@@ -30,11 +32,9 @@ spotify_callback = Blueprint('spotify_callback', __name__, template_folder='temp
 spotify_remove = Blueprint('spotify_remove', __name__, template_folder='templates')
 profile_page_password = Blueprint('profile_page_password', __name__, template_folder='templates')
 profile_page_delete_acc = Blueprint('profile_page_delete_acc', __name__, template_folder='templates')
-# spotify_playlist = Blueprint('spotify_playlist', __name__, template_folder='templates')
-# spotify_songs = Blueprint('spotify_songs', __name__, template_folder='templates')
-# spotify_add_pl = Blueprint('spotify_add_pl', __name__, template_folder='templates')
-# spotify_add_sg = Blueprint('spotify_add_sg', __name__, template_folder='templates')
-# spotify_search = Blueprint('spotify_search', __name__, template_folder='templates')
+youtube_oauth = Blueprint('youtube_oauth', __name__, template_folder='templates')
+youtube_callback = Blueprint('youtube_callback', __name__, template_folder='templates')
+yto = Blueprint('yto', __name__, template_folder='templates')
 
 @landing_page.route('/')
 @landing_page.route('/landing')
@@ -55,6 +55,10 @@ def landing():
         # resp = make_response(render_template('landing.html', title='Welcome, first-time visitor - PlaySync', visitor_status="New Visitor"))
         # resp.set_cookie('visited', '1')
         # return resp
+
+@landing_page.route('/google083b603006fd3547.html')
+def googleVerify():
+    return render_template('google083b603006fd3547.html')
 
 @login_page.route('/login')
 def login():
@@ -169,7 +173,9 @@ def authget():
 @youtube_operation.route('/youtube', methods=['POST'])
 def youtube_ops():
     json_response = {}
-    user = unquote(request.form.get('user'))
+    if 'user' in request.cookies: # Logged in
+        user = request.cookies.get('user')
+    print(user, file=sys.stderr)
     if user != "" and valid_user(user) != None:
         # Valid operation
         uid = get_uid(valid_user(user))
@@ -277,7 +283,8 @@ def profile():
         email = get_email(user)
         auth_body = get_auth(user)
         spotifyName = spotify.get_name()
-        return render_template('profile.html', email=email, auth_body=auth_body, spotifyName=spotifyName)
+        ytName = yt.get_name()
+        return render_template('profile.html', email=email, auth_body=auth_body, spotifyName=spotifyName, ytName=ytName)
     else: # Not Logged In
         return redirect("./", code=302)
     
@@ -430,27 +437,46 @@ def spotifyRemove():
     remove_spotify_auth(user)
     return spotify.sign_out(user)
     
-# @spotify_playlist.route('/spotifyPlaylist')
-# def getPlaylists():
-#     user = request.cookies.get('user').split(':')[1]
-#     return playlists(user)
+@youtube_oauth.route('/ytoauth')
+def ytoauth():
+    return yt.authorize_yt()
 
-# @spotify_songs.route('/spotifySongs/<pl_id>')
-# def spotifySongs(pl_id):
-#     user = request.cookies.get('user').split(':')[1]
-#     return songs(user, pl_id)
+@youtube_oauth.route('/ytcallback')
+def ytcallback():
+    user = request.cookies.get('user').split(':')[1]
+    add_auth(user, 'using Google oAuth 2.0 no header needed')
+    return yt.oauth2callback(user)
 
-# @spotify_search.route('/spotifySearch/<artist>/<track>')
-# def searchSong(artist, track):
-#     user = request.cookies.get('user').split(':')[1]
-#     return search_song(user, artist, track)
-    
-# @spotify_add_pl.route('/spotifyAddPl/<name>')
-# def spotifyAddPl(name):
-#     user = request.cookies.get('user').split(':')[1]
-#     return add_playlist(user, name)
+@youtube_oauth.route('/ytremove')
+def ytremove():
+    user = request.cookies.get('user').split(':')[1]
+    remove_yt_auth(user)
+    return yt.sign_out(user)
+    #return redirect('./profile')    
 
-# @spotify_add_sg.route('/spotifyAddSg/<pl_id>/<artist>/<track>')
-# def spotifyAddSg(pl_id, artist, track):
-#     user = request.cookies.get('user').split(':')[1]
-#     return add_song(user, pl_id, artist, track)
+@yto.route('/ytotest2')
+def ytotest2():
+    user = request.cookies.get('user').split(':')[1]
+    return yt.ytotest2(user)
+
+@yto.route('/ytube', methods=['GET', 'POST'])
+def yttest():
+    json_response = {}
+    user = request.cookies.get('user').split(':')[1]
+    print(user, file=sys.stderr)
+    if user != "" and valid_user(user) != None:
+        # Valid operation
+        uid = get_uid(valid_user(user))
+        # Get header saved in db
+        auth_body = psql_check_auth(uid, "ytmusic")
+        if auth_body == "":
+            json_response['status'] = "fail"
+            json_response['message'] = "invalid auth"
+            return json.dumps(json_response)
+        else:
+            credential = credential_youtube(auth_body)
+            ytapi=youtube_music_tasker(credential[1])
+
+    op = unquote(request.form.get('op'))
+    if op == "playlist": # Show playlist
+        return yt.ytotest2(user)
